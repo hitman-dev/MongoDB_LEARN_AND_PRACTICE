@@ -1,0 +1,164 @@
+Problem # 1: Write a query to display the member id, member name, city and membership status who are all having life time membership. Hint: Life time membership status is “Permanent”.
+ANS)
+db.LMS_MEMBERS.find(
+            { "MEMBERSHIP_STATUS": "Permanent" },
+            { MEMBER_ID: 1, MEMBER_NAME: 1, CITY: 1, MEMBERSHIP_STATUS: 1, _id: 0 })
+
+
+Problem # 2: Write a query to display the member_name,book code, publication, price and supplier name of the book which has been issued to a member.
+ANS)
+db.LMS_BOOK_ISSUE.aggregate([
+    {
+        $lookup: {
+            from: "LMS_MEMBERS",
+            localField: "MEMBER_ID",
+            foreignField: "MEMBER_ID",
+            as: "member"
+        }
+    },
+    { "$unwind": "$member" },
+    {
+        $lookup: {
+            from: "LMS_BOOK_DETAILS",
+            localField: "BOOK_CODE",
+            foreignField: "BOOK_CODE",
+            as: "bookDetails"
+        }
+    },
+    { "$unwind": "$bookDetails" },
+ {
+        $lookup: {
+            from: "LMS_SUPPLIERS_DETAILS",
+            localField: "bookDetails.SUPPLIER_ID",
+            foreignField: "SUPPLIER_ID",
+            as: "supplier"
+        }
+    },
+    { "$unwind": "$supplier" },
+    {
+        $project: {
+            "MEMBER_NAME": "$member.MEMBER_NAME",
+   "SUPPLIER_NAME": "$supplier.SUPPLIER_NAME",
+            "BOOK_CODE": 1,
+            "PUBLISHER": "$bookDetails.PUBLICATION",
+            "PRICE": "$bookDetails.PRICE",
+            _id: 0
+        }
+    }])
+
+
+Problem # 3: Write a query to display the member id, member name who have taken the book with book code 'BL000002'.
+ANS)
+db.LMS_BOOK_ISSUE.aggregate(
+    [
+        { $match: {BOOK_CODE: 'BL000002'}},
+        { $lookup: {
+            from: "LMS_MEMBERS",
+            localField: "MEMBER_ID",
+            foreignField: "MEMBER_ID",
+            as: "mID"
+        }},
+        { $unwind: "$mID"},
+        { $project: {
+            "MEMBER_ID": 1,
+            "MEMBER_NAME": "$mID.MEMBER_NAME",
+            _id: 0
+        }}
+    ])
+
+
+Problem # 4: Write a query to display the book code, book title and author of the books whose author name begins with 'P'.
+ANS)
+db.LMS_BOOK_DETAILS.find({"AUTHOR": /^p/i},{"BOOK_CODE": 1, "BOOK_TITLE": 1, "AUTHOR": 1, _id: 0})
+
+Problem # 5: Write a query to display the total number of Java books available in library with alias column name ‘NO_OF_BOOKS’.
+ANS)
+db.LMS_BOOK_DETAILS.aggregate([
+    {$match: {"CATEGORY": 'JAVA'}},
+    {$group: {_id: "$CATEGORY", "NUMBEROFBOOKS": {$sum: 1}}}
+])
+
+Problem # 6: Write a query to list the category and number of books in each category with alias name ‘NO_OF_BOOKS’.
+ANS)
+db.LMS_BOOK_DETAILS.aggregate([
+    { "$group": { "_id": "$CATEGORY", "NO_OF_BOOKS": { "$sum": 1 }}}
+    ])
+
+
+Problem # 6-1: Write a query to list the category and number of books in each category with alias name ‘NO_OF_BOOKS’ such that the number of books are greater than 2 .
+ANS)
+
+db.LMS_BOOK_DETAILS.aggregate([
+    { "$group": { "_id": "$CATEGORY", "NO_OF_BOOKS": { "$sum": 1 }}},
+    { "$match": { "NO_OF_BOOKS": { $gt: 2 }}}
+])
+
+
+
+Problem # 7: Write a query to display the number of books published by "Prentice Hall” with the alias name “NO_OF_BOOKS”.
+ANS)
+db.LMS_BOOK_DETAILS.aggregate([
+    { $match: { "PUBLICATION": 'Prentice Hall' }},
+    { $group: { _id: "$PUBLICATION", "NO_OF_BOOKS": { $sum: 1 }}}
+])
+
+Problem # 8: Write a query to display the book code, book title of the books which are issued on the date "1st April 2012".
+ANS)
+db.LMS_BOOK_ISSUE.aggregate([
+    { $match: { "DATE_ISSUE": ISODate("2012-04-01T00:00:00.000+0000") }},
+    {
+        $lookup: {
+            from: "LMS_BOOK_DETAILS",
+            localField: "BOOK_CODE",
+            foreignField: "BOOK_CODE",
+            as: "bkc"
+        }
+    },
+    { $unwind: "$bkc" },
+    {
+        $project: {
+            "BOOK_CODE": 1,
+            "BOOK_TITLE": "$bkc.BOOK_TITLE",
+            _id: 0
+        }
+    }])
+	
+
+
+Problem # 9: Write a query to display the member id, member name, date of registration and expiry date of the members whose membership expiry date is before APR 2012.
+ANS)
+db.LMS_MEMBERS.find({ "DATE_EXPIRE": { $lt: ISODate("2012-04-01" )} },
+    { MEMBER_ID: 1, MEMBER_NAME: 1, DATE_REGISTER: 1, DATE_EXPIRE: 1, _id: 0 })
+
+
+Problem # 10: write a query to display the member id, member name, date of registration, membership status of the members who registered before "March 2012" and membership status is "Temporary"
+ANS)
+db.LMS_MEMBERS.find({ "DATE_REGISTER": { $lt: "2012-03-01" }, "MEMBERSHIP_STATUS": "Temporary" },
+    { MEMBER_ID: 1, MEMBER_NAME: 1, DATE_REGISTER: 1, MEMBERSHIP_STATUS: 1, _id: 0 })
+
+Problem #11: Write a query to display the member id, member name who’s City is CHENNAI or DELHI. Hint:case insenstive search and display the member name in title/sentence case with alias name 'Name'.
+ANS)
+db.LMS_MEMBERS.find({ CITY: { $in: [/chennai/i, /delhi/i] } },
+    { MEMBER_ID: 1, MEMBER_NAME: 1, CITY: 1, _id: 0 })
+
+Problem #12: Write a query to concatenate book title, author and display in the following format. Book_Title_is_written_by_Author Example: Let Us C_is_written_by_Yashavant Kanetkar Hint: display unique books. Use “BOOK_WRITTEN_BY” as alias name.
+ANS)
+ANS1)db.LMS_BOOK_DETAILS.aggregate([
+    { $project:
+            { BOOK_WRITTEN_BY: {
+                    $concat: ["$BOOK_TITLE", " is_written_by ", "$AUTHOR"]
+                }, _id: 0 }}])
+
+ANS2)
+db.LMS_BOOK_DETAILS.aggregate([
+    { $project:
+            { BOOK_WRITTEN_BY: {
+                    $concat: ["$BOOK_TITLE", " is_written_by ", "$AUTHOR"]
+                },
+        _id: 0 
+    }},
+    {
+        $group: {_id: null, uniqueValues: {$addToSet: "$BOOK_WRITTEN_BY"}}
+    }])
+
+

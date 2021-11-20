@@ -1,0 +1,377 @@
+<li>Problem # 1:
+Write a query to display the member id, member name of the members, book code and book title of the books taken by them.
+
+ANS)
+db.LMS_BOOK_ISSUE.aggregate([
+    { $lookup: {
+        from: "LMS_MEMBERS",
+        localField: "MEMBER_ID",
+        foreignField: "MEMBER_ID",
+        as: "member"
+    }},
+    { $unwind: "$member"},
+    { $lookup: {
+        from: "LMS_BOOK_DETAILS",
+        localField: "BOOK_CODE",
+        foreignField: "BOOK_CODE",
+        as: "bookDetails"
+    }},
+    { $unwind: "$bookDetails"},
+    { $group: { _id: "$MEMBER_ID",
+        "MEMBER_ID": {$first: "$MEMBER_ID"},
+        "MEMBER_NAME": {$first: "$member.MEMBER_NAME"},
+        "BOOK_CODE": {$first: "$bookDetails.BOOK_CODE"},
+        "BOOK_TITLE": {$first: "$bookDetails.BOOK_TITLE"}
+        
+    }},
+    { $project: { _id: 0 }}
+])
+
+<li>Problem # 2:
+Write a query to display the total number of books available in the library with alias name “NO_OF_BOOKS_AVAILABLE” (Which are never issued). Hint: The issued books details are available in the LMS_BOOK_ISSUE table
+
+ANS)
+ db.LMS_BOOK_DETAILS.aggregate([
+                                 {$lookup:{
+                                 from: "LMS_BOOK_ISSUE",
+                                 localField:"BOOK_CODE",
+                                 foreignField:"BOOK_CODE",
+                                 as: "bookissue"}},
+                                 {$unwind:"$bookissue"},
+                                 {$match:{"bookissue.{MEMBER_ID}":{$exists:false}}},
+                                 {$group:{_id:null,"NO_OF_BOOKS_AVAILABLE":{$sum:1}}}
+                                 ]) 
+
+Problem # 3:
+a)Write a query to display the member id, member name and total fine amount of the members whose total fine amount is less than 100.
+ANS_)
+ db.LMS_BOOK_ISSUE.aggregate([
+    { $lookup: {
+        from: "LMS_MEMBERS",
+        localField: "MEMBER_ID",
+        foreignField: "MEMBER_ID",
+        as: "member"
+    }},
+    { $unwind: "$member"},
+    { $lookup: {
+        from: "LMS_FINE_DETAILS",
+        localField: "FINE_RANGE",
+        foreignField: "FINE_RANGE",
+        as: "fineDetails"
+    }},
+    { $unwind: "$fineDetails"},
+    { $group: { _id: "$MEMBER_ID",
+        "MEMBER_ID": {$first: "$MEMBER_ID"},
+        "MEMBER_NAME": {$first: "$member.MEMBER_NAME"},
+        "FINE": { $sum: "$fineDetails.FINE_AMOUNT"}
+    }},
+     { $match: {"FINE": {$lt: 100}}},
+     { $project: { _id: 0 }}
+])
+
+b)Write a query to display the member id, member name, fine range and total fine amount of the members whose total fine amount for a given fine range is less than 100.
+ANS)
+ db.LMS_BOOK_ISSUE.aggregate([
+    { $lookup: {
+        from: "LMS_MEMBERS",
+        localField: "MEMBER_ID",
+        foreignField: "MEMBER_ID",
+        as: "member"
+    }},
+    { $unwind: "$member"},
+    { $lookup: {
+        from: "LMS_FINE_DETAILS",
+        localField: "FINE_RANGE",
+        foreignField: "FINE_RANGE",
+        as: "fineDetails"
+    }},
+    { $unwind: "$fineDetails"},
+    { $match: {"fineDetails.FINE_AMOUNT": {$lt: 100}}},
+    { $group: { _id: "$MEMBER_ID",
+        "MEMBER_ID": {$first: "$MEMBER_ID"},
+        "MEMBER_NAME": {$first: "$member.MEMBER_NAME"},
+        "FINE_RANGE":{$first: "fineDetails.FINE_RANGE"},
+        "FINE": { $sum: "$fineDetails.FINE_AMOUNT"}
+    }},
+     { $match: {"FINE": {$lt: 100}}},
+     { $project: { _id: 0 }}
+])
+
+
+c)Write a query to display the member id, member name, fine range and fine amount of the members whose fine amount is less than 100.
+ANS)
+db.LMS_BOOK_ISSUE.aggregate([
+    { $lookup: {
+        from: "LMS_MEMBERS",
+        localField: "MEMBER_ID",
+        foreignField: "MEMBER_ID",
+        as: "member"
+    }},
+    { $unwind: "$member"},
+    { $lookup: {
+        from: "LMS_FINE_DETAILS",
+        localField: "FINE_RANGE",
+        foreignField: "FINE_RANGE",
+        as: "fine"
+    }},
+    { $unwind: "$fine" },
+    { $match: {"fine.FINE_AMOUNT": {$lt: 100}}},
+    { $project: {
+        "MEMBER_ID": 1,
+        "MEMBER_NAME": "$member.MEMBER_NAME",
+        "FINE_RANGE": 1,
+        "FINE": "$fine.FINE_AMOUNT",
+        _id: 0
+    }}
+])
+
+
+<li>Problem # 4:
+Write a query to display the book code, book title, publisher, edition, price and year of publication and sort based on year of publication, publisher and edition.
+
+ANS)
+db.LMS_BOOK_DETAILS.aggregate([
+{ $project: {
+        "BOOK_CODE": 1,
+        "BOOK_TITLE": 1,
+        "PUBLICATION": 1,
+        "BOOK_EDITION": 1,
+        "PRICE": 1,
+       "PUBLISH_DATE": 1,
+        _id: 0  }
+},
+   {$sort : {PUBLISH_DATE : 1}}
+  
+])
+
+<li>Problem # 5:
+Write a query to display the book code, book title and rack number of the books which are placed in rack 'A1' and sort by book title in ascending order. 
+
+ANS)
+db.LMS_BOOK_DETAILS.aggregate([
+{ $project: {
+        "BOOK_CODE": 1,
+        "BOOK_TITLE": 1,
+        "RACK_NUM": 1,       
+        _id: 0  }
+},
+    { $match: {"RACK_NUM": {$eq: "A1"}}},
+  ])
+
+<li>Problem # 6:
+Write a query to display the member id, member name, due date and date returned of the members who has returned the books after the due date. Hint: Date_return is due date and Date_returned is actual book return date. 
+
+ANS)
+
+db.LMS_BOOK_ISSUE.aggregate([
+    { $match: {
+        $expr: {
+            $gt: ["$DATE_RETURNED","$DATE_RETURN"]
+        }
+    }},
+    { $lookup: {
+        from: "LMS_MEMBERS",
+        localField: "MEMBER_ID",
+        foreignField: 'MEMBER_ID',
+        as: "member"
+    }},
+    { $unwind: "$member"},
+    { $project: {
+        _id: 0,
+        MEMBER_ID: 1,
+        MEMBER_NAME: "$member.MEMBER_NAME",
+        DATE_RETURN: 1,
+        DATE_RETURNED: 1
+    }}
+])
+<li>Problem # 7:
+Write a query to display the member id, member name and date of registration who have not taken any book. 
+
+ANS)
+db.LMS_MEMBERS.aggregate([
+    { $lookup: {
+        from: "LMS_BOOK_ISSUE",
+        localField: "MEMBER_ID",
+        foreignField: "MEMBER_ID",
+        as: "mem_id"
+    }},
+    { $match: {"mem_id.MEMBER_ID": {$exists: false}}},
+    { $project: {
+        _id: 0,
+        MEMBER_ID: 1,
+        MEMBER_NAME: 1,
+        DATE_REGISTER: 1
+    }}
+])
+
+<li>Problem # 8:
+Write a Query to display the member id and member name of the members who has not paid any fine in the year 2012.
+
+ANS)
+db.LMS_BOOK_ISSUE.aggregate([
+    { $match: {
+        $expr: {
+            $gte: ["$DATE_RETURN","$DATE_RETURNED"]
+        }
+    }},
+    { $lookup: {
+        from: "LMS_MEMBERS",
+        localField: "MEMBER_ID",
+        foreignField: 'MEMBER_ID',
+        as: "member"
+    }},
+    { $unwind: "$member"},
+    {$match: {$or :[{DATE_RETURNED:{$nin:["2012"]}},{DATE_RETURNED:null}]}},
+    { $project: {
+        _id: 0,
+        MEMBER_ID: 1,
+        MEMBER_NAME: "$member.MEMBER_NAME",
+        DATE_RETURNED: 1,
+    }},
+
+
+])
+----------------------------------------------------------------------
+//	ONLY 2012
+db.LMS_MEMBERS.aggregate([
+    { $lookup: {
+        from: "LMS_BOOK_ISSUE",
+        let: { "member": "$MEMBER_ID" },
+        pipeline: [
+            { $match: { 
+                $expr: { 
+                    $and: [
+                        { $eq: [ "$MEMBER_ID", "$$member" ]},
+                        { $eq:[{ $year: "$DATE_RETURNED" }, 2012 ]},
+                        { $gte: [ "$DATE_RETURN", "$DATE_RETURNED" ]}
+                ]}}
+        }],
+        as: "array"
+    }},
+    { $match: { "array": { $ne: [] }}},
+    { $project: {
+        _id: 0,
+        MEMBER_ID: 1,
+        MEMBER_NAME: 1
+    }}
+])
+---------------------------------------------------------------------------
+// ALL YEAR
+ db.LMS_MEMBERS.aggregate([
+    { $lookup: {
+        from: "LMS_BOOK_ISSUE",
+        let: { "member": "$MEMBER_ID" },
+        pipeline: [
+            { $match: { 
+                $expr: { 
+                    $and: [
+                        { $eq: [ "$MEMBER_ID", "$$member" ]},
+                        { $eq:[{ $year: "$DATE_RETURNED" }, 2012 ]},
+                        { $gte: [ "$DATE_RETURN", "$DATE_RETURNED" ]}
+                ]}}
+        }],
+        as: "array"
+    }},
+    { $match: { "array": { $ne: [] }}},
+    { $project: {
+        _id: 0,
+        MEMBER_ID: 1,
+        MEMBER_NAME: 1
+    }}
+])
+
+
+i>Problem # 9:
+Write a query to display the date on which the maximum numbers of books were issued and the number of books issued with alias name “NOOFBOOKS”.
+
+ANS)
+db = db.getSiblingDB("test");
+db.getCollection("LMS_BOOK_ISSUE").aggregate(
+    [
+        { 
+            "$group" : { 
+                "_id" : "$DATE_ISSUE", 
+                "my_count" : { 
+                    "$sum" : NumberInt(1)
+                }
+            }
+        }, 
+        { 
+            "$lookup" : { 
+                "from" : "LMS_BOOK_ISSUE", 
+                "let" : { 
+                    "outer_id" : "$_id", 
+                    "outer_document_count" : "$my_count"
+                }, 
+                "pipeline" : [
+                    { 
+                        "$group" : { 
+                            "_id" : "$DATE_ISSUE", 
+                            "my_inner_count" : { 
+                                "$sum" : NumberInt(1)
+                            }
+                        }
+                    }, 
+                    { 
+                        "$group" : { 
+                            "_id" : 1.0, 
+                            "my_max_inner_count" : { 
+                                "$max" : "$my_inner_count"
+                            }
+                        }
+                    }, 
+                    { 
+                        "$match" : { 
+                            "$expr" : { 
+                                "$eq" : [
+                                    "$$outer_document_count", 
+                                    "$my_max_inner_count"
+                                ]
+                            }
+                        }
+                    }
+                ], 
+                "as" : "answer"
+            }
+        }, 
+        { 
+            "$match" : { 
+                "answer" : { 
+                    "$ne" : [
+
+                    ]
+                }
+            }
+        }, 
+        { 
+            "$project" : { 
+                "date_issue" : "$_id", 
+                "no_of_books" : "$my_count", 
+                "_id" : 0.0
+            }
+        }
+    ], 
+    { 
+        "allowDiskUse" : false
+    }
+);
+
+
+<li>Problem # 10:
+Write a query to list the book title and supplier id for the books authored by authors whose name starts with 'H'/'h'  and the book edition is atleast 5 and supplied by supplier ‘S01’/'S02'/'S03'. 
+
+ANS)
+ 
+ db.LMS_BOOK_DETAILS.aggregate([
+   { $match:{ $or :[{"AUTHOR":/^h/i},{"AUTHOR":/^H/i}]}},
+   { $match: {"BOOK_EDITION": {$gte: 5}}},
+ 
+{ $project: {
+        "AUTHOR":1,
+        "SUPPLIER_ID": 1,
+        "BOOK_EDITION": 1,       
+        _id: 0  }
+},
+   { $match: {"SUPPLIER_ID": {$in: ["S01","S02","S03"]}}},
+  ])
+ 

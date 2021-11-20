@@ -1,0 +1,76 @@
+
+<li> Problem #13:
+Write a query to display the average price of books which is belonging to ‘JAVA’ category with alias name “AVERAGEPRICE”.
+
+ANS)
+db.LMS_BOOK_DETAILS.aggregate([
+    { $match: { "CATEGORY": "JAVA"}},
+    { $group: { _id: "$CATEGORY", "AVERAGEPRICE": { $avg: "$PRICE"}}}
+])
+
+
+<li> Problem #14:
+Write a query to display the supplier id, supplier name and email of the suppliers who are all having gmail account.
+
+ANS)
+db.LMS_SUPPLIERS_DETAILS.find({"EMAIL": /@gmail.com$/},{SUPPLIER_ID: 1, SUPPLIER_NAME: 1, EMAIL: 1, _id: 0})
+
+<li> Problem#15:
+Write a query to display the supplier id, supplier name and contact details. Contact details can be either phone number or email or address with alias name “CONTACTDETAILS”. If phone number is null then display email, even if email also null then display the address of the supplier. Hint: Use Coalesce function. 
+
+ANS)
+
+db.LMS_SUPPLIERS_DETAILS.aggregate([
+    { $project: {
+        SUPPLIER_ID: 1,
+        SUPPLIER_NAME: 1,
+        CONTACTDETAILS: { $ifNull: [ "$CONTACT", "$EMAIL" ]}, _id: 0 }}
+])
+
+
+<li> Problem#16:
+Write a query to display the supplier id, supplier name and contact.  If phone number is null then display ‘No’ else display ‘Yes’ with alias name “PHONENUMAVAILABLE”. Hint: Use ISNULL/COALESCE/NVL.
+
+ANS)
+db.LMS_SUPPLIERS_DETAILS.aggregate([
+    { $project: {
+        SUPPLIER_ID: 1,
+        SUPPLIER_NAME: 1,
+        CONTACT: 1,
+        PHONENUMAVAILABLE: { 
+            $cond: {
+                if: { $ne: ["$CONTACT", null]},
+                then: "YES",
+                else: "NO"
+        }},
+        _id: 0 }}
+])
+
+<li> Problem#17:
+Write a query to display the member id, member name, city and member status of members with the total fine paid by them with alias name “Fine”.
+
+ANS)
+db.LMS_BOOK_ISSUE.aggregate([
+    { $lookup: {
+        from: "LMS_MEMBERS",
+        localField: "MEMBER_ID",
+        foreignField: "MEMBER_ID",
+        as: "member"
+    }},
+    { $unwind: "$member"},
+    { $lookup: {
+        from: "LMS_FINE_DETAILS",
+        localField: "FINE_RANGE",
+        foreignField: "FINE_RANGE",
+        as: "fineDetails"
+    }},
+    { $unwind: "$fineDetails"},
+    { $group: { _id: "$MEMBER_ID",
+        "MEMBER_ID": {$first: "$MEMBER_ID"},
+        "MEMBER_NAME": {$first: "$member.MEMBER_NAME"},
+        "CITY": {$first: "$member.CITY"},
+        "MEMBERSHIP_STATUS": {$first: "$member.MEMBERSHIP_STATUS"},
+        "TOTALFINE": { $sum: "$fineDetails.FINE_AMOUNT"}
+    }},
+    { $project: { _id: 0 }}
+])
